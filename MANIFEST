@@ -1,0 +1,11 @@
+Changes
+LICENSE
+MANIFEST
+META.yml
+Makefile.PL
+README
+dist.ini
+lib/WWW/Shorten/Googl.pm
+t/googl.t
+t/release-pod-coverage.t
+t/release-pod-syntax.t
