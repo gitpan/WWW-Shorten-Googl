@@ -4,8 +4,10 @@ MANIFEST
 META.yml
 Makefile.PL
 README
+bin/goo.gl
 dist.ini
 lib/WWW/Shorten/Googl.pm
+t/authenticated.t
 t/googl.t
 t/release-pod-coverage.t
 t/release-pod-syntax.t

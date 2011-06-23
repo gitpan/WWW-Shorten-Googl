@@ -7,44 +7,96 @@ use warnings;
 
 use base qw( WWW::Shorten::generic Exporter );
 our @EXPORT  = qw( makeashorterlink makealongerlink );
-our $VERSION = '0.99';
+our $VERSION = '1.00';
 
+{
+
+    # As docs advice you use this module as "use WWW::Shorten 'Googl'"
+    # that module takes care of the importing.. so let's hack this in here
+    no strict 'refs';
+    *{"main::getlinkstats"} = *{"WWW::Shorten::Googl::getlinkstats"};
+}
+
+use JSON::Any;
 use Carp;
 
+use constant API_URL => 'https://www.googleapis.com/urlshortener/v1/url';
+use constant HISTORY_URL =>
+  'https://www.googleapis.com/urlshortener/v1/url/history';
+
 sub makeashorterlink ($) {
-    my $url     = shift or croak 'No URL passed to makeashorterlink';
-    my $ua      = __PACKAGE__->ua();
-    my $api_url = 'http://goo.gl/api/url';
-    my $resp    = $ua->post(
-        $api_url,
-        [
-            url    => $url,
-            source => "PerlAPI",
-        ]
-    );
-    return undef unless $resp->is_success;
-    my $content = $resp->content;
-    return undef if $content =~ /Error/;
-    if ( $resp->content =~ m!(\Qhttp://goo.gl/\E\w+)!x ) {
-        return $1;
-    }
-    return;
+    my $url = shift or croak 'No URL passed to makeashorterlink';
+
+    my $json = JSON::Any->new;
+    my $content = $json->objToJson( { longUrl => $url, } );
+
+    my $res = _request( 'post', API_URL, Content => $content );
+    return $res->{id} if ( $res->{id} );
+    return undef;
 }
 
 sub makealongerlink ($) {
     my $url = shift
       or croak 'No goo.gl key / URL passed to makealongerlink';
-    my $ua = __PACKAGE__->ua();
 
     $url = "http://goo.gl/$url"
       unless $url =~ m!^http://!i;
 
-    my $resp = $ua->get($url);
+    my $res = _request( 'get', API_URL . '?shortUrl=' . $url );
+    return $res->{longUrl} if ( $res->{longUrl} );
+    return undef;
+}
 
-    return undef unless $resp->is_redirect;
-    my $location = $resp->header('Location');
-    return $location;
+sub getlinkstats ($) {
+    my $url = shift
+      or croak 'No goo.gl key / URL passed to makealongerlink';
 
+    $url = "http://goo.gl/$url"
+      unless $url =~ m!^http://!i;
+
+    my $res = _request( 'get', API_URL . '?projection=FULL&shortUrl=' . $url );
+    return $res;
+}
+
+sub _request {
+    my ( $method, $url, @args ) = @_;
+
+    my $ua      = __PACKAGE__->ua();
+    my %headers = ();
+    if ( $ENV{GOOGLE_USERNAME} && $ENV{GOOGLE_PASSWORD} ) {
+        $headers{Authorization} =
+          _authorize( $ENV{GOOGLE_USERNAME}, $ENV{GOOGLE_PASSWORD} );
+    }
+    $headers{'Content-Type'} = 'application/json';
+
+    my $resp = $ua->$method( $url, %headers, @args );
+    die "Request failed - " . $resp->status_line unless $resp->is_success;
+
+    my $json = JSON::Any->new;
+    my $obj  = $json->jsonToObj( $resp->content );
+    return $obj;
+}
+
+sub _authorize {
+    my ( $username, $password ) = @_;
+
+    eval "require Net::Google::AuthSub";
+    if ($@) {
+        die "You need to install Net::Google::AuthSub to enable URL tracking";
+    }
+
+    my $auth = Net::Google::AuthSub->new(
+        service => 'urlshortener',
+        source  => 'perl/www-shorten-googl',
+    );
+    my $res = $auth->login( $username, $password );
+    unless ( $res and $res->is_success ) {
+        die "Authentication failed - " . $res->error;
+    }
+    unless ( $auth->authorized ) {
+        die "Not authorized";
+    }
+    return 'GoogleLogin auth=' . $auth->auth_token;
 }
 
 1;
@@ -65,9 +117,12 @@ WWW::Shorten::Googl - Perl interface to goo.gl
 
   $long_url  = makealongerlink($short_url);
 
+  # Note - this function is specific to the Googl shortener
+  $stats = getlinkstats( $short_url );
+
 =head1 DESCRIPTION
 
-A Perl interface to the web site goo.gl. Googl simply maintains
+A Perl interface to the goo.gl URL shortening service. Googl simply maintains
 a database of long URLs, each of which has a unique identifier.
 
 =head1 Functions
@@ -77,15 +132,34 @@ a database of long URLs, each of which has a unique identifier.
 The function C<makeashorterlink> will call the Googl web site passing
 it your long URL and will return the shorter Googl version.
 
+If you provide your Google username and password, the link will be added
+to your list of shortened URLs at L<http://goo.gl/>. See AUTHENTICATION for details.
+
 =head2 makealongerlink
 
 The function C<makealongerlink> does the reverse. C<makealongerlink>
 will accept as an argument either the full goo.gl URL or just the
 goo.gl identifier.
 
-If anything goes wrong, then either function will return C<undef>.
+=head2 getlinkstats
 
-=head2 EXPORT
+Given a goo.gl URL, returns a hash ref with statistics about the URL.
+
+See L<http://code.google.com/apis/urlshortener/v1/reference.html#resource_url>
+for information on which data can be present in this hash ref.
+
+=head1 AUTHENTICATION
+
+If you provide your Google username and password, all shortened URLs will be
+available for viewing at L<http://goo.gl/>
+
+You provide these details by setting the environment variables GOOGLE_USERNAME
+and GOOGLE_PASSWORD, such as
+
+ GOOGLE_USERNAME=your.username@gmail.com
+ GOOGLE_PASSWORD=somethingVerySecret
+
+=head1 EXPORT
 
 makeashorterlink, makealongerlink
 
@@ -99,6 +173,6 @@ Magnus Erixzon <magnus@erixzon.com>
 
 =head1 SEE ALSO
 
-L<WWW::Shorten>, L<http://goo.gl/>
+L<WWW::Shorten>, L<http://goo.gl/>, L<http://code.google.com/apis/urlshortener/v1/reference.html#resource_url>
 
 =cut

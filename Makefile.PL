@@ -16,14 +16,17 @@ my %WriteMakefileArgs = (
     'ExtUtils::MakeMaker' => '6.31'
   },
   'DISTNAME' => 'WWW-Shorten-Googl',
-  'EXE_FILES' => [],
+  'EXE_FILES' => [
+    'bin/goo.gl'
+  ],
   'LICENSE' => 'perl',
   'NAME' => 'WWW::Shorten::Googl',
   'PREREQ_PM' => {
+    'JSON::Any' => '0',
     'LWP::UserAgent' => '0',
     'WWW::Shorten' => '1.98'
   },
-  'VERSION' => '0.99',
+  'VERSION' => '1.00',
   'test' => {
     'TESTS' => 't/*.t'
   }
