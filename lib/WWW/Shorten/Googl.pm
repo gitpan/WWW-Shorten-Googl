@@ -7,7 +7,7 @@ use warnings;
 
 use base qw( WWW::Shorten::generic Exporter );
 our @EXPORT  = qw( makeashorterlink makealongerlink );
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 {
 
