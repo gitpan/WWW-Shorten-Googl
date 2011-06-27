@@ -23,10 +23,11 @@ my %WriteMakefileArgs = (
   'NAME' => 'WWW::Shorten::Googl',
   'PREREQ_PM' => {
     'JSON::Any' => '0',
+    'LWP::Protocol::https' => '0',
     'LWP::UserAgent' => '0',
     'WWW::Shorten' => '1.98'
   },
-  'VERSION' => '1.01',
+  'VERSION' => '1.02',
   'test' => {
     'TESTS' => 't/*.t'
   }

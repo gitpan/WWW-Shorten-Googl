@@ -14,8 +14,9 @@ meta-spec:
 name: WWW-Shorten-Googl
 requires:
   JSON::Any: 0
+  LWP::Protocol::https: 0
   LWP::UserAgent: 0
   WWW::Shorten: 1.98
 resources:
   repository: http://github.com/merixzon/www-shorten-googl
-version: 1.01
+version: 1.02
